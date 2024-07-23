@@ -15,7 +15,7 @@ import (
 // Info хранит информацию о версии сборки
 type Info struct {
 	Version         string
-	BuildDate       string
+	BuildDate       time.Time
 	CommitHash      string
 	GoVersion       string
 	Platform        string
@@ -37,7 +37,7 @@ func NewInfo(version, commit, releaseType, developer string) *Info {
 	buildDate := time.Now().Format("2006-01-02")
 	return &Info{
 		Version:         version,
-		BuildDate:       time.Now().Format(time.RFC3339),
+		BuildDate:       time.Now(),
 		CommitHash:      commit,
 		GoVersion:       runtime.Version(),
 		Platform:        runtime.GOOS,
@@ -142,7 +142,7 @@ func (info *Info) GetVersion() string {
 	return info.Version
 }
 
-func (info *Info) GetBuildDate() string {
+func (info *Info) GetBuildDate() time.Time {
 	return info.BuildDate
 }
 
