@@ -16,7 +16,6 @@ import (
 type Info struct {
 	Version         string
 	BuildDate       time.Time
-	CommitHash      string
 	GoVersion       string
 	Platform        string
 	BuildID         string
@@ -25,10 +24,50 @@ type Info struct {
 	Developer       string
 	Dependencies    map[string]string
 	DetailedVersion string
+	*GITInfo
 }
 
 // NewInfo создает новый объект Info с заданной версией и коммитом
-func NewInfo(version, commit, releaseType, developer string) *Info {
+func NewInfo(version, releaseType, developer string) *Info {
+
+	commitHash, _ := GetGitCommitHashFull()
+	branchName, _ := GetGitBranchName()
+	commitDate, _ := GetGitCommitDate()
+
+	dep, err := getDependencies()
+	if err != nil {
+		fmt.Println("Error while getting dependencies: ", err)
+	}
+
+	cl, err := GetGitChangelog("")
+	if err != nil {
+		fmt.Println("Error while getting git changelog: ", err)
+	}
+
+	buildDate := time.Now()
+	return &Info{
+		Version:         version,
+		BuildDate:       buildDate,
+		GoVersion:       runtime.Version(),
+		Platform:        runtime.GOOS,
+		Architecture:    runtime.GOARCH,
+		BuildID:         generateBuildID(),
+		ReleaseType:     releaseType,
+		Dependencies:    dep,
+		Developer:       developer,
+		DetailedVersion: fmt.Sprintf("%s-%s(%s) | %s", version, commitHash, releaseType, buildDate.Format("2006-01-02")),
+		GITInfo: &GITInfo{
+			CommitHash:      commitHash,
+			CommitHashShort: commitHash[:7],
+			BranchName:      branchName,
+			CommitDate:      commitDate,
+			Changelog:       cl,
+		},
+	}
+}
+
+// NewInfo создает новый объект Info с заданной версией и коммитом
+func NewInfoCustom(version, commit, commitFull, releaseType, developer, branch, commitDate string) *Info {
 	dep, err := getDependencies()
 	if err != nil {
 		fmt.Println("Error while getting dependencies: ", err)
@@ -38,7 +77,6 @@ func NewInfo(version, commit, releaseType, developer string) *Info {
 	return &Info{
 		Version:         version,
 		BuildDate:       time.Now(),
-		CommitHash:      commit,
 		GoVersion:       runtime.Version(),
 		Platform:        runtime.GOOS,
 		Architecture:    runtime.GOARCH,
@@ -47,6 +85,12 @@ func NewInfo(version, commit, releaseType, developer string) *Info {
 		Dependencies:    dep,
 		Developer:       developer,
 		DetailedVersion: fmt.Sprintf("%s-%s(%s) | %s", version, commit, releaseType, buildDate),
+		GITInfo: &GITInfo{
+			CommitHash:      commitFull,
+			CommitHashShort: commit,
+			BranchName:      branch,
+			CommitDate:      commitDate,
+		},
 	}
 }
 
@@ -103,6 +147,10 @@ func (info *Info) RemoveDependency(modulePath string) {
 	delete(info.Dependencies, modulePath)
 }
 
+func (info *Info) SaveToHistory(bh *BuildHistory) {
+	bh.AddBuild(info)
+}
+
 // String возвращает информацию о версии в формате строки
 func (info *Info) String() string {
 	return fmt.Sprintf(
@@ -136,48 +184,4 @@ func (info *Info) JSON() string {
 		log.Fatalf("failed to marshal version info to JSON: %v", err)
 	}
 	return string(data)
-}
-
-func (info *Info) GetVersion() string {
-	return info.Version
-}
-
-func (info *Info) GetBuildDate() time.Time {
-	return info.BuildDate
-}
-
-func (info *Info) GetCommitHash() string {
-	return info.CommitHash
-}
-
-func (info *Info) GetGoVersion() string {
-	return info.GoVersion
-}
-
-func (info *Info) GetPlatform() string {
-	return info.Platform
-}
-
-func (info *Info) GetBuildID() string {
-	return info.BuildID
-}
-
-func (info *Info) GetReleaseType() string {
-	return info.ReleaseType
-}
-
-func (info *Info) GetArchitecture() string {
-	return info.Architecture
-}
-
-func (info *Info) GetDeveloper() string {
-	return info.Developer
-}
-
-func (info *Info) GetDependencies() map[string]string {
-	return info.Dependencies
-}
-
-func (info *Info) GetDetailedVersion() string {
-	return info.DetailedVersion
 }
