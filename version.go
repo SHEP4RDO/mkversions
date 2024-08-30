@@ -27,47 +27,49 @@ type Info struct {
 	*GITInfo
 }
 
-// NewInfo создает новый объект Info с заданной версией и коммитом
-func NewInfo(version, releaseType, developer string) *Info {
+// Функция создания Info
+func NewInfo(version, releaseType, developer string, opts ...Option) *Info {
+	var branchName string
+	var commitHash string
+	var commitDate time.Time
 
-	commitHash, _ := GetGitCommitHashFull()
-	branchName, _ := GetGitBranchName()
-	commitDate, _ := GetGitCommitDate()
+	// Установка значений по умолчанию
+	branchName = "unknown"
+	commitHash = "unknown"
+	commitDate = time.Time{}
 
-	dep, err := getDependencies()
-	if err != nil {
-		fmt.Println("Error while getting dependencies: ", err)
-	}
-
-	cl, err := GetGitChangelog("")
-	if err != nil {
-		fmt.Println("Error while getting git changelog: ", err)
-	}
-
-	buildDate := time.Now()
-	return &Info{
+	// Создание начального объекта Info с дефолтными значениями
+	info := &Info{
 		Version:         version,
-		BuildDate:       buildDate,
+		BuildDate:       time.Now(),
 		GoVersion:       runtime.Version(),
 		Platform:        runtime.GOOS,
 		Architecture:    runtime.GOARCH,
 		BuildID:         generateBuildID(),
 		ReleaseType:     releaseType,
-		Dependencies:    dep,
+		Dependencies:    make(map[string]string),
 		Developer:       developer,
-		DetailedVersion: fmt.Sprintf("%s-%s(%s) | %s", version, commitHash, releaseType, buildDate.Format("2006-01-02")),
+		DetailedVersion: fmt.Sprintf("%s-%s(%s) | %s", version, commitHash, releaseType, time.Now().Format("2006-01-02")),
 		GITInfo: &GITInfo{
 			CommitHash:      commitHash,
 			CommitHashShort: commitHash[:7],
 			BranchName:      branchName,
 			CommitDate:      commitDate,
-			Changelog:       cl,
+			Changelog:       nil,
 		},
 	}
+
+	// Применение опций
+	for _, opt := range opts {
+		opt(info)
+	}
+
+	info.PrepareGit()
+	return info
 }
 
 // NewInfo создает новый объект Info с заданной версией и коммитом
-func NewInfoCustom(version, commit, commitFull, releaseType, developer, branch, commitDate string) *Info {
+func NewInfoCustom(version, commit, commitFull, releaseType, developer, branch string, commitDate time.Time) *Info {
 	dep, err := getDependencies()
 	if err != nil {
 		fmt.Println("Error while getting dependencies: ", err)
