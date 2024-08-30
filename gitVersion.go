@@ -3,15 +3,16 @@ package mkversions
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
+	"time"
 )
 
 type GITInfo struct {
 	CommitHash      string
 	CommitHashShort string
 	BranchName      string
-	CommitDate      string
+	CommitDate      time.Time
+	ChangelogSince  time.Time
 	*Changelog
 }
 
@@ -28,54 +29,126 @@ type CommitDetails struct {
 	Date    string `json:"date"`
 }
 
-func GetGitCommitHashFull() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get Git commit hash: %v", err)
+func (info *Info) PrepareGit() {
+	if info.GITInfo.BranchName == "unknown" {
+		var branchErr error
+		info.GITInfo.BranchName, branchErr = GetGitBranchName()
+		if branchErr != nil {
+			fmt.Println("Error while getting git branch name: ", branchErr)
+			info.GITInfo.BranchName = ""
+		}
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	if info.GITInfo.CommitHash == "unknown" {
+		var hashErr error
+		info.GITInfo.CommitHash, hashErr = GetGitCommitHashFull(info.GITInfo.BranchName)
+		if hashErr != nil {
+			fmt.Println("Error while getting git commit hash: ", hashErr)
+			info.GITInfo.CommitHash = "unknown"
+		}
+	}
+
+	if info.GITInfo.CommitDate.IsZero() {
+		var dateErr error
+		info.GITInfo.CommitDate, dateErr = GetGitCommitDate(info.GITInfo.BranchName)
+		if dateErr != nil {
+			fmt.Println("Error while getting git commit date: ", dateErr)
+			info.GITInfo.CommitDate = time.Time{}
+		}
+	}
+
+	var logSince time.Time
+	if !info.ChangelogSince.IsZero() {
+		logSince = info.GITInfo.CommitDate.Add(-24 * time.Hour)
+	} else {
+		logSince = time.Now().Add(-24 * time.Hour)
+	}
+
+	var changelogErr error
+	info.GITInfo.Changelog, changelogErr = GetGitChangelog(logSince.Format("2006-01-02"), info.GITInfo.BranchName)
+	if changelogErr != nil {
+		fmt.Println("Error while getting git changelog: ", changelogErr)
+		info.GITInfo.Changelog = &Changelog{}
+	}
 }
 
-func GetGitCommitHashShort() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get Git commit hash: %v", err)
+func GetGitCommitHashFull(ref string) (string, error) {
+	args := []string{"rev-parse", "HEAD"}
+	if ref != "" {
+		args = []string{"rev-parse", ref}
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	stdout, stderr, err := runGitCommand(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Git commit hash: %v, %s", err, stderr)
+	}
+	return strings.TrimSpace(stdout), nil
+}
+
+func GetGitCommitHashShort(ref string) (string, error) {
+	args := []string{"rev-parse", "--short", "HEAD"}
+	if ref != "" {
+		args = []string{"rev-parse", "--short", ref}
+	}
+
+	stdout, stderr, err := runGitCommand(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Git commit hash: %v, %s", err, stderr)
+	}
+	return strings.TrimSpace(stdout), nil
 }
 
 func GetGitBranchName() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	output, err := cmd.Output()
+	stdout, stderr, err := runGitCommand("rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
-		return "", fmt.Errorf("failed to get Git branch name: %v", err)
+		return "", fmt.Errorf("failed to get Git branch name: %v, %s", err, stderr)
 	}
-	return strings.TrimSpace(string(output)), nil
+	return strings.TrimSpace(stdout), nil
 }
 
-func GetGitCommitDate() (string, error) {
-	cmd := exec.Command("git", "log", "-1", "--format=%cd", "--date=short")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get Git commit date: %v", err)
+func GetGitCommitDate(ref string) (time.Time, error) {
+	args := []string{"log", "-1", "--format=%cd", "--date=local"}
+	if ref != "" {
+		args = append(args, ref)
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	stdout, stderr, err := runGitCommand(args...)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get Git commit date: %v, %s", err, stderr)
+	}
+
+	strDate := strings.TrimSpace(stdout)
+	date, err := time.Parse("Mon Jan 2 15:04:05 2006", strDate)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse Git commit date: %v", err)
+	}
+	return date, nil
 }
 
-func GetGitChangelog(since string) (*Changelog, error) {
-	cmdArgs := []string{"log", "--pretty=format:%h - %s - %an <%ae> - %ad", "--no-merges", "--date=iso"}
+// GetGitChangelog получает журнал коммитов Git с учетом даты и ссылки
+func GetGitChangelog(since, ref string) (*Changelog, error) {
+	var cmdArgs []string
+
+	// Формирование аргументов команды
+	cmdArgs = []string{"log", "--pretty=format:%h - %s - %an <%ae> - %ad", "--no-merges", "--date=iso"}
+
+	// Если указана дата, добавляем аргумент --since
 	if since != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("%s..HEAD", since))
-	}
-	cmd := exec.Command("git", cmdArgs...)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Git changelog: %v", err)
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--since=%s", since))
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	// Если указана ссылка, добавляем ее
+	if ref != "" {
+		cmdArgs = append(cmdArgs, ref)
+	}
+
+	// Выполнение команды
+	output, stderr, err := runGitCommand(cmdArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Git changelog: %v, stderr: %s", err, stderr)
+	}
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
 	entries := make([]string, len(lines))
 	commits := make([]CommitDetails, len(lines))
 
