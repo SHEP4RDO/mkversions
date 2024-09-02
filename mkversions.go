@@ -2,7 +2,6 @@ package mkversions
 
 import (
 	"bytes"
-	"fmt"
 	"os/exec"
 	"time"
 )
@@ -43,7 +42,6 @@ func WithLogSince(since time.Time) Option {
 }
 
 func runGitCommand(args ...string) (string, string, error) {
-	fmt.Printf("git %v\n", args)
 	cmd := exec.Command("git", args...)
 
 	var stdout, stderr bytes.Buffer
