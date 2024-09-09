@@ -25,6 +25,7 @@ type Info struct {
 	Dependencies    map[string]string
 	DetailedVersion string
 	*GITInfo
+	*AppMetadata
 }
 
 // Функция создания Info
@@ -57,6 +58,7 @@ func NewInfo(version, releaseType, developer string, opts ...Option) *Info {
 			CommitDate:      commitDate,
 			Changelog:       nil,
 		},
+		AppMetadata: &AppMetadata{},
 	}
 
 	// Применение опций
@@ -66,6 +68,14 @@ func NewInfo(version, releaseType, developer string, opts ...Option) *Info {
 
 	info.PrepareGit()
 	return info
+}
+
+func (i *Info) SetInfo(opts ...Option) *Info {
+	for _, opt := range opts {
+		opt(i)
+	}
+
+	return i
 }
 
 // NewInfo создает новый объект Info с заданной версией и коммитом
