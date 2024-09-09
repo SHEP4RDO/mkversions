@@ -9,6 +9,78 @@ import (
 // Опции для настройки Info
 type Option func(*Info)
 
+func WithVersion(version string) Option {
+	return func(info *Info) {
+		info.Version = version
+	}
+}
+
+func WithReleaseType(releaseType string) Option {
+	return func(info *Info) {
+		info.ReleaseType = releaseType
+	}
+}
+
+func WithDeveloper(developer string) Option {
+	return func(info *Info) {
+		info.Developer = developer
+	}
+}
+
+func WithProgramName(programName string) Option {
+	return func(info *Info) {
+		info.ProgramName = programName
+	}
+}
+
+func WithCompanyName(companyName string) Option {
+	return func(info *Info) {
+		info.CompanyName = companyName
+	}
+}
+
+func WithDescription(description string) Option {
+	return func(info *Info) {
+		info.Description = description
+	}
+}
+
+func WithLegal(legal string) Option {
+	return func(info *Info) {
+		info.Legal = legal
+	}
+}
+
+func WithProductVersion(productVersion string) Option {
+	return func(info *Info) {
+		info.ProductVersion = productVersion
+	}
+}
+
+func WithGoVersion(goVersion string) Option {
+	return func(info *Info) {
+		info.GoVersion = goVersion
+	}
+}
+
+func WithPlatform(platform string) Option {
+	return func(info *Info) {
+		info.Platform = platform
+	}
+}
+
+func WithArchitecture(architecture string) Option {
+	return func(info *Info) {
+		info.Architecture = architecture
+	}
+}
+
+func WithBuildID(buildID string) Option {
+	return func(info *Info) {
+		info.BuildID = buildID
+	}
+}
+
 func WithCommitHash(hash string) Option {
 	return func(info *Info) {
 		info.GITInfo.CommitHash = hash
@@ -20,21 +92,18 @@ func WithCommitHash(hash string) Option {
 	}
 }
 
-// С помощью функции-опции можно изменить только имя ветки
 func WithBranchName(branch string) Option {
 	return func(info *Info) {
 		info.GITInfo.BranchName = branch
 	}
 }
 
-// С помощью функции-опции можно изменить только дату коммита
 func WithCommitDate(date time.Time) Option {
 	return func(info *Info) {
 		info.GITInfo.CommitDate = date
 	}
 }
 
-// Опция для задания времени начала выборки логов (logSince)
 func WithLogSince(since time.Time) Option {
 	return func(info *Info) {
 		info.GITInfo.ChangelogSince = since
