@@ -45,6 +45,13 @@ func (info *Info) PrepareGit() {
 		if hashErr != nil {
 			fmt.Println("Error while getting git commit hash: ", hashErr)
 			info.GITInfo.CommitHash = "unknown"
+			info.GITInfo.CommitHashShort = "unknown"
+		}
+
+		if len(info.GITInfo.CommitHash) > 7 {
+			info.GITInfo.CommitHashShort = info.GITInfo.CommitHash[:7]
+		} else {
+			info.GITInfo.CommitHashShort = info.GITInfo.CommitHash
 		}
 	}
 
