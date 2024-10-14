@@ -110,6 +110,12 @@ func WithLogSince(since time.Time) Option {
 	}
 }
 
+func WithBuildDate(newBuildDate time.Time) Option {
+	return func(info *Info) {
+		info.BuildDate = newBuildDate
+	}
+}
+
 func runGitCommand(args ...string) (string, string, error) {
 	cmd := exec.Command("git", args...)
 
