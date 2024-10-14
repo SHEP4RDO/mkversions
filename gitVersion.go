@@ -135,7 +135,6 @@ func GetGitCommitDate(ref string) (time.Time, error) {
 // GetGitChangelog получает журнал коммитов Git с учетом даты и ссылки
 func GetGitChangelog(since, ref string) (*Changelog, error) {
 	var cmdArgs []string
-
 	cmdArgs = []string{"log", "--pretty=format:%h - %s - %an <%ae> - %ad", "--no-merges", "--date=iso"}
 
 	if since != "" {
@@ -172,11 +171,17 @@ func GetGitChangelog(since, ref string) (*Changelog, error) {
 		} else {
 			email = "unknown"
 		}
+		var author string
+		if emailStart != -1 {
+			author = strings.TrimSpace(authorPart[:emailStart-1])
+		} else {
+			author = strings.TrimSpace(authorPart)
+		}
 
 		commits[i] = CommitDetails{
 			Hash:    parts[0],
 			Message: parts[1],
-			Author:  strings.TrimSpace(authorPart[:emailStart-1]),
+			Author:  author,
 			Email:   email,
 			Date:    parts[3],
 		}
