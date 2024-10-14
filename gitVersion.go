@@ -136,20 +136,16 @@ func GetGitCommitDate(ref string) (time.Time, error) {
 func GetGitChangelog(since, ref string) (*Changelog, error) {
 	var cmdArgs []string
 
-	// Формирование аргументов команды
 	cmdArgs = []string{"log", "--pretty=format:%h - %s - %an <%ae> - %ad", "--no-merges", "--date=iso"}
 
-	// Если указана дата, добавляем аргумент --since
 	if since != "" {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--since=%s", since))
 	}
 
-	// Если указана ссылка, добавляем ее
 	if ref != "" {
 		cmdArgs = append(cmdArgs, ref)
 	}
 
-	// Выполнение команды
 	output, stderr, err := runGitCommand(cmdArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Git changelog: %v, stderr: %s", err, stderr)
@@ -170,7 +166,12 @@ func GetGitChangelog(since, ref string) (*Changelog, error) {
 		authorPart := parts[2]
 		emailStart := strings.Index(authorPart, "<")
 		emailEnd := strings.Index(authorPart, ">")
-		email := authorPart[emailStart+1 : emailEnd]
+		var email string
+		if emailStart != -1 && emailEnd != -1 && emailEnd > emailStart {
+			email = authorPart[emailStart+1 : emailEnd]
+		} else {
+			email = "unknown"
+		}
 
 		commits[i] = CommitDetails{
 			Hash:    parts[0],
