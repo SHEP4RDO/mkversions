@@ -197,19 +197,17 @@ func removeFileWithRetry(filePath string) error {
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		err = os.Remove(filePath)
 		if err == nil {
-			return nil // Успешно удалено
+			return nil
 		}
 
 		if os.IsPermission(err) {
-			// Если ошибка связана с правами доступа, пробуем изменить права
 			os.Chmod(filePath, 0666)
 		}
 
-		// Ждем перед следующей попыткой
 		time.Sleep(time.Duration(attempt*100) * time.Millisecond)
 	}
 
-	return err // Возвращаем последнюю ошибку, если все попытки не удались
+	return err
 }
 func (i *Info) RunUpdate(rceditPath ...string) {
 	handleRemoveSignal()
@@ -217,6 +215,17 @@ func (i *Info) RunUpdate(rceditPath ...string) {
 	var path string
 	if len(rceditPath) > 0 {
 		path = rceditPath[0]
+	}
+
+	localPaths := []string{
+		"./rcedit.exe",
+		"./rcedit-x64.exe",
+		"./rcedit-x86.exe",
+		"/usr/local/bin/rcedit-x64",
+		"/usr/local/bin/rcedit-x86",
+		"C:\\Program Files\\rcedit.exe",
+		"C:\\Program Files\\rcedit-x64.exe",
+		"C:\\Program Files (x86)\\rcedit-x86.exe",
 	}
 
 	if len(os.Args) > 1 {
@@ -230,18 +239,26 @@ func (i *Info) RunUpdate(rceditPath ...string) {
 			var err error
 			downloadedRcedit := false
 
-			if path == "" || !fileExists(path) {
+			if path == "" {
+				fmt.Println("No rcedit path provided. Searching in local directories and standard paths...")
+				for _, p := range localPaths {
+					if fileExists(p) {
+						path = p
+						break
+					}
+				}
+
 				if path == "" {
-					fmt.Println("No rcedit path provided. Attempting to download...")
-				} else {
-					fmt.Printf("rcedit not found at %s.\n", path)
-					os.Exit(1)
+					fmt.Println("rcedit not found. Attempting to download...")
+					path, err, downloadedRcedit = downloadRcedit()
+					if err != nil {
+						fmt.Printf("Failed to download rcedit: %v\n", err)
+						os.Exit(1)
+					}
 				}
-				path, err, downloadedRcedit = downloadRcedit()
-				if err != nil {
-					fmt.Printf("Failed to download rcedit: %v\n", err)
-					os.Exit(1)
-				}
+			} else if !fileExists(path) {
+				fmt.Printf("rcedit not found at %s.\n", path)
+				os.Exit(1)
 			}
 
 			if err = i.performUpdate(path); err != nil {
